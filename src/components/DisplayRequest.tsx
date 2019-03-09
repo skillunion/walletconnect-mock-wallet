@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { convertHexToUtf8 } from "@walletconnect/utils";
 import Column from "./Column";
 import Button from "./Button";
+import { sha256 } from "../helpers/dapplet-lib";
 
 const SRequestValues = styled.div`
   font-family: monospace;
@@ -48,6 +49,7 @@ class DisplayRequest extends React.Component<any, any> {
     } = this.props;
 
     let params = [{ label: "Method", value: displayRequest.method }];
+    let metaTx = null;
 
     switch (displayRequest.method) {
       case "eth_sendTransaction":
@@ -84,6 +86,13 @@ class DisplayRequest extends React.Component<any, any> {
           }
         ];
         break;
+
+      // ToDo: DiP: load dapplet txMeta
+      case "wallet_loadDapplet":
+        metaTx = displayRequest.params[1];
+        metaTx.tweetHash = sha256([metaTx.text])
+        break;
+
       default:
         params = [
           ...params,
@@ -107,6 +116,14 @@ class DisplayRequest extends React.Component<any, any> {
             <SRequestValues>{param.value}</SRequestValues>
           </React.Fragment>
         ))}
+        <div>
+             <h3>Hash Tweet</h3>
+             <div>Text:{metaTx.text}</div>
+             <div>Name:{metaTx.authorFullname}</div> 
+             <div>User:{metaTx.authorUsername}</div>
+             <div>Logo:<img src={metaTx.authorImg}/></div>
+             <div>Hash:{metaTx.tweetHash}</div>
+        </div>
         <SActions>
           <Button onClick={approveRequest}>{`Approve`}</Button>
           <Button onClick={rejectRequest}>{`Reject`}</Button>
