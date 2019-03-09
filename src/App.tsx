@@ -415,6 +415,9 @@ class App extends React.Component<{}> {
             if (address === displayRequest.params[0]) {
               result = await signMessage(displayRequest.params[1]);
             }
+          case "wallet_loadDapplet":
+            console.log('!!!!! wallet_loadDapplet displayRequest', displayRequest); // tslint:disable-line
+            result = { customResult: 'yohooo!' }; // TODO !!!!! transaction generate
           default:
             break;
         }
