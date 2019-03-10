@@ -55,7 +55,7 @@ class DisplayRequest extends React.Component<any, any> {
         // metaTx.tweetHash = sha256([metaTx.text])
         let template = dapplet.template;
         const metaTx = displayRequest.params[1];
-        displayRequest.params[2] = dapplet.createTx(metaTx);
+        displayRequest.params[2] = dapplet;
 
         // template rendering 
         for (const key in metaTx) {
@@ -64,7 +64,6 @@ class DisplayRequest extends React.Component<any, any> {
             template = template.replace('{{' + key + '}}', value);
           }
         }
-        console.log('template', template); // tslint:disable-line
         me.setState({ renderedDapplet: template });
       });
     }

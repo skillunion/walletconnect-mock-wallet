@@ -21,11 +21,10 @@ export async function apiFetchDapplet(
   dappletId: string
 ): Promise<any> {
   const response = await dappletApi.get(
-    `${dappletId}.js`
+    `${dappletId}.json`
   );
-  const result = eval(response.data);
-
-  return result;
+  
+  return response.data;
 }
 
 export const apiSendTransaction = async (
