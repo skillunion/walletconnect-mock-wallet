@@ -420,8 +420,6 @@ class App extends React.Component<{}> {
             // ToDo: create Dapplet Tx from metaTx here
             // 
             result = await sendDappletTransaction(displayRequest.params[2], displayRequest.params[1]);
-            console.log('!!!!! wallet_loaldDapplet displayRequest', displayRequest); // tslint:disable-line
-            result = { customResult: 'yohooo!' }; // TODO !!!!! transaction generate
           default:
             break;
         }
