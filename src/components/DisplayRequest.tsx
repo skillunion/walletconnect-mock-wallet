@@ -6,6 +6,17 @@ import Button from "./Button";
 // import { sha256 } from "../helpers/dapplet-lib";
 import { apiFetchDapplet } from 'src/helpers/api';
 
+const SDapplet = styled.div`
+  width: 100%;
+  padding: 20px 20px;
+  background: rgb(255,255,255);
+  border-radius: 6px;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: rgba(12,12,13,0);
+  box-shadow: 0px 2px 6px 0 rgba(0,0,0,0.1), 0 0 1px 0 rgba(50,50,93,0.02), -1px 2px 10px 0 rgba(59,59,92,0.15);
+`;
+
 const SRequestValues = styled.div`
   font-family: monospace;
   width: 100%;
@@ -136,18 +147,18 @@ class DisplayRequest extends React.Component<any, any> {
           <img src={peerMeta.icons[0]} alt={peerMeta.name} />
           <div>{peerMeta.name}</div>
         </SConnectedPeer>
+        {
+          (this.state.renderedDapplet) ? <div>
+            <h6>{"Dapplet"}</h6>
+            <SDapplet dangerouslySetInnerHTML={{ __html: this.state.renderedDapplet }} />
+          </div> : null
+        }
         {params.map(param => (
           <React.Fragment key={param.label}>
             <h6>{param.label}</h6>
             <SRequestValues>{param.value}</SRequestValues>
           </React.Fragment>
         ))}
-        {
-          (this.state.renderedDapplet) ? <div>
-            <h6>{"Dapplet"}</h6>
-            <div dangerouslySetInnerHTML={{ __html: this.state.renderedDapplet }} />
-          </div> : null
-        }
 
         <SActions>
           <Button onClick={approveRequest}>{`Approve`}</Button>
