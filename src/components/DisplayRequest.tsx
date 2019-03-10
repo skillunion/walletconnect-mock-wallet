@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { convertHexToUtf8 } from "@walletconnect/utils";
 import Column from "./Column";
 import Button from "./Button";
-// import { sha256 } from "../helpers/dapplet-lib";
+import { sha256 } from "../helpers/dapplet-lib";
 import { apiFetchDapplet } from 'src/helpers/api';
 
 const SDapplet = styled.div`
@@ -63,9 +63,9 @@ class DisplayRequest extends React.Component<any, any> {
     if (displayRequest.method === 'wallet_loadDapplet') {
       const dappletId = displayRequest.params[0];
       apiFetchDapplet(dappletId).then(dapplet => {
-        // metaTx.tweetHash = sha256([metaTx.text])
         let template = dapplet.template;
         const metaTx = displayRequest.params[1];
+        metaTx.tweetHash = sha256([metaTx.text])
         displayRequest.params[2] = dapplet;
 
         // template rendering 

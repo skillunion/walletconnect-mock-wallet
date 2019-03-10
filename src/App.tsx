@@ -17,6 +17,7 @@ import {
   testAccounts,
   updateWallet,
   sendTransaction,
+  sendDappletTransaction,
   signMessage
 } from "./helpers/wallet";
 
@@ -416,7 +417,10 @@ class App extends React.Component<{}> {
               result = await signMessage(displayRequest.params[1]);
             }
           case "wallet_loadDapplet":
-            console.log('!!!!! wallet_loadDapplet displayRequest', displayRequest); // tslint:disable-line
+            // ToDo: create Dapplet Tx from metaTx here
+            // 
+            result = await sendDappletTransaction(displayRequest.params[2], displayRequest.params[1]);
+            console.log('!!!!! wallet_loaldDapplet displayRequest', displayRequest); // tslint:disable-line
             result = { customResult: 'yohooo!' }; // TODO !!!!! transaction generate
           default:
             break;
