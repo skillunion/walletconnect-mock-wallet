@@ -3,7 +3,8 @@ import styled from "styled-components";
 import { convertHexToUtf8 } from "@walletconnect/utils";
 import Column from "./Column";
 import Button from "./Button";
-import { sha256 } from "../helpers/dapplet-lib";
+// import { sha256 } from "../helpers/dapplet-lib";
+import { apiFetchDapplet } from 'src/helpers/api';
 
 const SRequestValues = styled.div`
   font-family: monospace;
@@ -40,6 +41,35 @@ const SActions = styled.div`
 `;
 
 class DisplayRequest extends React.Component<any, any> {
+  constructor(props: any) {
+    super(props);
+    this.state = { renderedDapplet: null };
+  }
+
+  public componentDidMount() {
+    const me = this;
+    const { displayRequest } = me.props;
+    if (displayRequest.method === 'wallet_loadDapplet') {
+      const dappletId = displayRequest.params[0];
+      apiFetchDapplet(dappletId).then(dapplet => {
+        // metaTx.tweetHash = sha256([metaTx.text])
+        let template = dapplet.template;
+        const metaTx = displayRequest.params[1];
+        displayRequest.params[2] = dapplet.createTx(metaTx);
+
+        // template rendering 
+        for (const key in metaTx) {
+          if (key) {
+            const value = metaTx[key];
+            template = template.replace('{{' + key + '}}', value);
+          }
+        }
+        console.log('template', template); // tslint:disable-line
+        me.setState({ renderedDapplet: template });
+      });
+    }
+  }
+
   public render() {
     const {
       displayRequest,
@@ -49,7 +79,6 @@ class DisplayRequest extends React.Component<any, any> {
     } = this.props;
 
     let params = [{ label: "Method", value: displayRequest.method }];
-    let metaTx = null;
 
     switch (displayRequest.method) {
       case "eth_sendTransaction":
@@ -87,10 +116,8 @@ class DisplayRequest extends React.Component<any, any> {
         ];
         break;
 
-      // ToDo: DiP: load dapplet txMeta
+      // ToDo: DiP: load dapplet txMeta 
       case "wallet_loadDapplet":
-        metaTx = displayRequest.params[1];
-        metaTx.tweetHash = sha256([metaTx.text])
         break;
 
       default:
@@ -116,14 +143,13 @@ class DisplayRequest extends React.Component<any, any> {
             <SRequestValues>{param.value}</SRequestValues>
           </React.Fragment>
         ))}
-        <div>
-             <h3>Hash Tweet</h3>
-             <div>Text:{metaTx.text}</div>
-             <div>Name:{metaTx.authorFullname}</div> 
-             <div>User:{metaTx.authorUsername}</div>
-             <div>Logo:<img src={metaTx.authorImg}/></div>
-             <div>Hash:{metaTx.tweetHash}</div>
-        </div>
+        {
+          (this.state.renderedDapplet) ? <div>
+            <h6>{"Dapplet"}</h6>
+            <div dangerouslySetInnerHTML={{ __html: this.state.renderedDapplet }} />
+          </div> : null
+        }
+
         <SActions>
           <Button onClick={approveRequest}>{`Approve`}</Button>
           <Button onClick={rejectRequest}>{`Reject`}</Button>

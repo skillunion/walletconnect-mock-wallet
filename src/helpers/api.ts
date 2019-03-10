@@ -12,12 +12,8 @@ const api: AxiosInstance = axios.create({
 });
 
 const dappletApi: AxiosInstance = axios.create({
-  baseURL: "https://skillunion.github.io/metamask-extension-static/domains/",
-  timeout: 30000, // 30 secs
-  headers: {
-    Accept: "application/json",
-    "Content-Type": "application/json"
-  }
+  baseURL: "https://skillunion.github.io/dapplet-static/dapplets",
+  timeout: 30000 // 30 secs
 });
 
 
@@ -25,9 +21,10 @@ export async function apiFetchDapplet(
   dappletId: string
 ): Promise<any> {
   const response = await dappletApi.get(
-    `/ethresear.ch.json?dappletId=${dappletId}`
+    `${dappletId}.js`
   );
-  const { result } = response.data;
+  const result = eval(response.data);
+
   return result;
 }
 
