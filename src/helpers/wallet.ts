@@ -14,7 +14,14 @@ export const testAccounts = [
   }
 ];
 
-let activeAccount: ethers.Wallet | null = null;
+let wallet: ethers.Wallet | null = null;
+
+export function getWallet() {
+  if (wallet) {
+    return wallet;
+  }
+  return null;
+}
 
 export async function updateWallet(address: string, chainId: number) {
   const rpcUrl = getChainData(chainId).rpc_url;
@@ -23,14 +30,17 @@ export async function updateWallet(address: string, chainId: number) {
   )[0];
   if (account) {
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    activeAccount = new ethers.Wallet(account.privateKey, provider);
+    wallet = new ethers.Wallet(account.privateKey, provider);
   }
   return null;
 }
 
 export async function sendTransaction(transaction: any) {
-  if (activeAccount) {
-    if (transaction.from && transaction.from !== activeAccount.address) {
+  if (wallet) {
+    if (
+      transaction.from &&
+      transaction.from.toLowerCase() !== wallet.address.toLowerCase()
+    ) {
       console.error("Transaction request From doesn't match active account"); // tslint:disable-line
     }
 
@@ -38,7 +48,13 @@ export async function sendTransaction(transaction: any) {
       delete transaction.from;
     }
 
-    const result = await activeAccount.sendTransaction(transaction);
+    // ethers.js expects gasLimit instead
+    if ("gas" in transaction) {
+      transaction.gasLimit = transaction.gas;
+      delete transaction.gas;
+    }
+
+    const result = await wallet.sendTransaction(transaction);
     return result.hash;
   } else {
     console.error("No Active Account"); // tslint:disable-line
@@ -46,9 +62,38 @@ export async function sendTransaction(transaction: any) {
   return null;
 }
 
-export async function signMessage(message: any) {
-  if (activeAccount) {
-    const result = await activeAccount.signMessage(message);
+export async function signTransaction(data: any) {
+  if (wallet) {
+    if (data && data.from) {
+      delete data.from;
+    }
+    const result = await wallet.sign(data);
+    return result;
+  } else {
+    console.error("No Active Account"); // tslint:disable-line
+  }
+  return null;
+}
+
+export async function signMessage(data: any) {
+  if (wallet) {
+    const signingKey = new ethers.utils.SigningKey(wallet.privateKey);
+    const sigParams = await signingKey.signDigest(ethers.utils.arrayify(data));
+    const result = await ethers.utils.joinSignature(sigParams);
+    return result;
+  } else {
+    console.error("No Active Account"); // tslint:disable-line
+  }
+  return null;
+}
+
+export async function signPersonalMessage(message: any) {
+  if (wallet) {
+    const result = await wallet.signMessage(
+      ethers.utils.isHexString(message)
+        ? ethers.utils.arrayify(message)
+        : message
+    );
     return result;
   } else {
     console.error("No Active Account"); // tslint:disable-line

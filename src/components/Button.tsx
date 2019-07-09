@@ -6,7 +6,7 @@ import { colors, fonts, shadows, transitions } from "../styles";
 interface IButtonStyleProps {
   fetching: boolean;
   outline: boolean;
-  type: string;
+  type: "button" | "submit" | "reset";
   color: string;
   disabled: boolean;
   icon: any;
@@ -41,8 +41,7 @@ const SHoverLayer = styled.div`
   visibility: hidden;
 `;
 
-const SButtonStyleTypes = styled.button<IButtonStyleProps>``;
-const SButton = styled(SButtonStyleTypes)`
+const SButton = styled.button<IButtonStyleProps>`
   transition: ${transitions.button};
   position: relative;
   border: none;

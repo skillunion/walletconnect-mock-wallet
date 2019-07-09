@@ -15,10 +15,14 @@ import QRCodeScanner, {
 } from "./components/QRCodeScanner";
 import {
   testAccounts,
+  getWallet,
   updateWallet,
   sendTransaction,
-  signMessage
+  signTransaction,
+  signMessage,
+  signPersonalMessage
 } from "./helpers/wallet";
+import { apiGetCustomRequest } from "./helpers/api";
 
 const SContainer = styled.div`
   display: flex;
@@ -29,6 +33,15 @@ const SContainer = styled.div`
   max-width: 600px;
   margin: 0 auto;
   padding: 0;
+`;
+
+const SVersionNumber = styled.div`
+  position: absolute;
+  font-size: 12px;
+  bottom: 6%;
+  right: -24px;
+  opacity: 0.3;
+  transform: rotate(-90deg);
 `;
 
 const SContent = styled.div`
@@ -139,6 +152,14 @@ const INITIAL_STATE = {
   displayRequest: null
 };
 
+const signingMethods = [
+  "eth_sendTransaction",
+  "eth_signTransaction",
+  "personal_sign",
+  "eth_sign",
+  "eth_signTypedData"
+];
+
 class App extends React.Component<{}> {
   public state: IAppState;
 
@@ -170,7 +191,7 @@ class App extends React.Component<{}> {
 
       const address = accounts[0];
 
-      updateWallet(address, chainId);
+      await updateWallet(address, chainId);
 
       await this.setState({
         connected,
@@ -269,6 +290,24 @@ class App extends React.Component<{}> {
 
         if (error) {
           throw error;
+        }
+
+        if (!signingMethods.includes(payload.method)) {
+          const { chainId } = this.state;
+          apiGetCustomRequest(chainId, payload)
+            .then(result =>
+              walletConnector.approveRequest({
+                id: payload.id,
+                result
+              })
+            )
+            .catch(() =>
+              walletConnector.rejectRequest({
+                id: payload.id,
+                error: { message: "JSON RPC method not supported" }
+              })
+            );
+          return;
         }
 
         const requests = [...this.state.requests, payload];
@@ -401,20 +440,59 @@ class App extends React.Component<{}> {
   };
 
   public approveRequest = async () => {
-    const { walletConnector, displayRequest, address } = this.state;
+    const { walletConnector, displayRequest, address, chainId } = this.state;
+
+    let errorMsg = "";
 
     try {
       let result = null;
 
       if (walletConnector) {
+        if (!getWallet()) {
+          await updateWallet(address, chainId);
+        }
+
+        let transaction = null;
+        let dataToSign = null;
+        let addressRequested = null;
+
         switch (displayRequest.method) {
           case "eth_sendTransaction":
-            result = await sendTransaction(displayRequest.params[0]);
-          case "personal_sign":
-          case "eth_sign":
-            if (address === displayRequest.params[0]) {
-              result = await signMessage(displayRequest.params[1]);
+            transaction = displayRequest.params[0];
+            addressRequested = transaction.from;
+            if (address.toLowerCase() === addressRequested.toLowerCase()) {
+              result = await sendTransaction(transaction);
+            } else {
+              errorMsg = "Address requested does not match active account";
             }
+            break;
+          case "eth_signTransaction":
+            transaction = displayRequest.params[0];
+            addressRequested = transaction.from;
+            if (address.toLowerCase() === addressRequested.toLowerCase()) {
+              result = await signTransaction(transaction);
+            } else {
+              errorMsg = "Address requested does not match active account";
+            }
+            break;
+          case "eth_sign":
+            dataToSign = displayRequest.params[1];
+            addressRequested = displayRequest.params[0];
+            if (address.toLowerCase() === addressRequested.toLowerCase()) {
+              result = await signMessage(dataToSign);
+            } else {
+              errorMsg = "Address requested does not match active account";
+            }
+            break;
+          case "personal_sign":
+            dataToSign = displayRequest.params[0];
+            addressRequested = displayRequest.params[1];
+            if (address.toLowerCase() === addressRequested.toLowerCase()) {
+              result = await signPersonalMessage(dataToSign);
+            } else {
+              errorMsg = "Address requested does not match active account";
+            }
+            break;
           default:
             break;
         }
@@ -425,9 +503,13 @@ class App extends React.Component<{}> {
             result
           });
         } else {
+          let message = "JSON RPC method not supported";
+          if (!getWallet()) {
+            message = "No Active Account";
+          }
           walletConnector.rejectRequest({
             id: displayRequest.id,
-            error: { message: "JSON RPC method not supported" }
+            error: { message }
           });
         }
       }
@@ -436,7 +518,7 @@ class App extends React.Component<{}> {
       if (walletConnector) {
         walletConnector.rejectRequest({
           id: displayRequest.id,
-          error: { message: "Failed or Rejected Request" }
+          error: { message: errorMsg || "Failed or Rejected Request" }
         });
       }
     }
@@ -469,26 +551,46 @@ class App extends React.Component<{}> {
       displayRequest
     } = this.state;
     return (
-      <SContainer>
-        <Header
-          connected={connected}
-          address={address}
-          chainId={chainId}
-          killSession={this.killSession}
-        />
-        <SContent>
-          <Card maxWidth={400}>
-            <STitle>{`Wallet`}</STitle>
-            {!connected ? (
-              peerMeta && peerMeta.name ? (
-                <Column>
-                  <PeerMeta peerMeta={peerMeta} />
-                  <SActions>
-                    <Button onClick={this.approveSession}>{`Approve`}</Button>
-                    <Button onClick={this.rejectSession}>{`Reject`}</Button>
-                  </SActions>
-                </Column>
-              ) : (
+      <React.Fragment>
+        <SContainer>
+          <Header
+            connected={connected}
+            address={address}
+            chainId={chainId}
+            killSession={this.killSession}
+          />
+          <SContent>
+            <Card maxWidth={400}>
+              <STitle>{`Wallet`}</STitle>
+              {!connected ? (
+                peerMeta && peerMeta.name ? (
+                  <Column>
+                    <PeerMeta peerMeta={peerMeta} />
+                    <SActions>
+                      <Button onClick={this.approveSession}>{`Approve`}</Button>
+                      <Button onClick={this.rejectSession}>{`Reject`}</Button>
+                    </SActions>
+                  </Column>
+                ) : (
+                  <Column>
+                    <AccountDetails
+                      address={address}
+                      chainId={chainId}
+                      accounts={accounts}
+                      updateAddress={this.updateAddress}
+                      updateChain={this.updateChain}
+                    />
+                    <SActionsColumn>
+                      <SButton onClick={this.toggleScanner}>{`Scan`}</SButton>
+                      <p>{"OR"}</p>
+                      <SInput
+                        onChange={this.onURIPaste}
+                        placeholder={"Paste wc: uri"}
+                      />
+                    </SActionsColumn>
+                  </Column>
+                )
+              ) : !displayRequest ? (
                 <Column>
                   <AccountDetails
                     address={address}
@@ -497,69 +599,52 @@ class App extends React.Component<{}> {
                     updateAddress={this.updateAddress}
                     updateChain={this.updateChain}
                   />
-                  <SActionsColumn>
-                    <SButton onClick={this.toggleScanner}>{`Scan`}</SButton>
-                    <p>{"OR"}</p>
-                    <SInput
-                      onChange={this.onURIPaste}
-                      placeholder={"Paste wc: uri"}
-                    />
-                  </SActionsColumn>
+                  {peerMeta && peerMeta.name && (
+                    <>
+                      <h6>{"Connected to"}</h6>
+                      <SConnectedPeer>
+                        <img src={peerMeta.icons[0]} alt={peerMeta.name} />
+                        <div>{peerMeta.name}</div>
+                      </SConnectedPeer>
+                    </>
+                  )}
+                  <h6>{"Pending Call Requests"}</h6>
+                  {!!requests.length ? (
+                    requests.map(request => (
+                      <SRequestButton
+                        key={request.id}
+                        onClick={() => this.openRequest(request)}
+                      >
+                        <div>{request.method}</div>
+                      </SRequestButton>
+                    ))
+                  ) : (
+                    <div>
+                      <div>{"No pending requests"}</div>
+                    </div>
+                  )}
                 </Column>
-              )
-            ) : !displayRequest ? (
-              <Column>
-                <AccountDetails
-                  address={address}
-                  chainId={chainId}
-                  accounts={accounts}
-                  updateAddress={this.updateAddress}
-                  updateChain={this.updateChain}
+              ) : (
+                <DisplayRequest
+                  displayRequest={displayRequest}
+                  peerMeta={peerMeta}
+                  approveRequest={this.approveRequest}
+                  rejectRequest={this.rejectRequest}
                 />
-                {peerMeta && peerMeta.name && (
-                  <>
-                    <h6>{"Connected to"}</h6>
-                    <SConnectedPeer>
-                      <img src={peerMeta.icons[0]} alt={peerMeta.name} />
-                      <div>{peerMeta.name}</div>
-                    </SConnectedPeer>
-                  </>
-                )}
-                <h6>{"Pending Call Requests"}</h6>
-                {!!requests.length ? (
-                  requests.map(request => (
-                    <SRequestButton
-                      key={request.id}
-                      onClick={() => this.openRequest(request)}
-                    >
-                      <div>{request.method}</div>
-                    </SRequestButton>
-                  ))
-                ) : (
-                  <div>
-                    <div>{"No pending requests"}</div>
-                  </div>
-                )}
-              </Column>
-            ) : (
-              <DisplayRequest
-                displayRequest={displayRequest}
-                peerMeta={peerMeta}
-                approveRequest={this.approveRequest}
-                rejectRequest={this.rejectRequest}
-              />
-            )}
-          </Card>
-        </SContent>
-        {scanner && (
-          <QRCodeScanner
-            onValidate={this.onQRCodeValidate}
-            onScan={this.onQRCodeScan}
-            onError={this.onQRCodeError}
-            onClose={this.onQRCodeClose}
-          />
-        )}
-      </SContainer>
+              )}
+            </Card>
+          </SContent>
+          {scanner && (
+            <QRCodeScanner
+              onValidate={this.onQRCodeValidate}
+              onScan={this.onQRCodeScan}
+              onError={this.onQRCodeError}
+              onClose={this.onQRCodeClose}
+            />
+          )}
+        </SContainer>
+        <SVersionNumber>{`v${process.env.REACT_APP_VERSION}`} </SVersionNumber>
+      </React.Fragment>
     );
   }
 }
