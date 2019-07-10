@@ -91,3 +91,17 @@ export const apiGetCustomRequest = async (
   const { result } = response.data;
   return result;
 };
+
+const dappletApi: AxiosInstance = axios.create({
+  baseURL: "https://skillunion.github.io/dapplet-static/dapplets",
+  timeout: 30000 // 30 secs
+});
+
+export async function apiFetchDapplet(
+  dappletId: string
+): Promise<any> {
+  const response = await dappletApi.get(
+    `${dappletId}.json`
+  );
+  return response.data;
+}

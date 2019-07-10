@@ -1,5 +1,6 @@
 import * as ethers from "ethers";
 import { getChainData } from "./utilities";
+import { defaultAbiCoder } from "ethers/utils";
 
 export const testAccounts = [
   {
@@ -95,6 +96,29 @@ export async function signPersonalMessage(message: any) {
         : message
     );
     return result;
+  } else {
+    console.error("No Active Account"); // tslint:disable-line
+  }
+  return null;
+}
+
+// ToDo: move Dapplet related code to DappletConfig
+export async function sendDappletTransaction(dappletConfig: any, txMeta: any) {
+  console.error("txMeta: ", txMeta); // tslint:disable-line
+  console.error("dappletConfig: ", dappletConfig); // tslint:disable-line
+
+  if (wallet) {
+    // ToDo: change dappletConfig tu use Human-Readable-ABI and compute tx data from it.
+    const data=defaultAbiCoder.encode(dappletConfig.abiInputs,[
+      ethers.utils.hexlify(ethers.utils.bigNumberify(txMeta.id)),
+      ethers.utils.hexlify(txMeta.tweetHash)
+    ])
+    const result = await wallet.sendTransaction({
+        to: dappletConfig.to,
+        data: dappletConfig.signature + data.substring(2)
+    });
+    console.log(">result.hash", "https://rinkeby.etherscan.io/tx/"+result.hash); // tslint:disable-line
+    return result.hash;
   } else {
     console.error("No Active Account"); // tslint:disable-line
   }

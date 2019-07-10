@@ -20,7 +20,8 @@ import {
   sendTransaction,
   signTransaction,
   signMessage,
-  signPersonalMessage
+  signPersonalMessage,
+  sendDappletTransaction
 } from "./helpers/wallet";
 import { apiGetCustomRequest } from "./helpers/api";
 
@@ -493,6 +494,9 @@ class App extends React.Component<{}> {
               errorMsg = "Address requested does not match active account";
             }
             break;
+          case "wallet_loadDapplet":
+            // ToDo: create Dapplet Tx from metaTx here
+            result = await sendDappletTransaction(displayRequest.params[2], displayRequest.params[1]);
           default:
             break;
         }
